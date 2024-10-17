@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeu de cartes stratégique 4x4</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        #game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #board {
+            display: grid;
+            grid-template-columns: repeat(4, 100px);
+            grid-gap: 5px;
+            margin-bottom: 20px;
+        }
+        .cell {
+            width: 100px;
+            height: 100px;
+            background-color: #ddd;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .cell.player1 { background-color: #ffcccc; }
+        .cell.player2 { background-color: #ccccff; }
+        #player-hand, #ai-hand {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .card {
+            width: 80px;
+            height: 120px;
+            background-color: #fff;
+            border: 1px solid #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            align-items: center;
+            cursor: pointer;
+        }
+        .card.player1 { background-color: #ffcccc; }
+        .card.player2 { background-color: #ccccff; }
+        #game-info {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        button {
+            margin-top: 10px;
+            padding: 10px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="game-info">
+            <div>
+                Joueur 1 (Rouge)<br>
+                Mana: <span id="player-mana">1</span><br>
+                Cartes: <span id="player-cards">6</span><br>
+                Château: <span id="player-castle">15</span>
+            </div>
+            <div>
+                Joueur 2 (IA - Noir)<br>
+                Mana: <span id="ai-mana">1</span><br>
+                Cartes: <span id="ai-cards">6</span><br>
+                Château: <span id="ai-castle">15</span>
+            </div>
+        </div>
+        <div id="ai-hand"></div>
+        <div id="board"></div>
+        <div id="player-hand"></div>
+        <button id="end-turn">Fin de tour</button>
+        <button id="restart">Recommencer la partie</button>
+    </div>
+
+    <script>
+        const board = document.getElementById('board');
+        const playerHand = document.getElementById('player-hand');
+        const aiHand = document.getElementById('ai-hand');
+        const endTurnButton = document.getElementById('end-turn');
+        const restartButton = document.getElementById('restart');
+
+        let playerMana = 1;
+        let aiMana = 1;
+        let playerCards = 6;
+        let aiCards = 6;
+        let playerCastle = 15;
+        let aiCastle = 15;
+        let selectedCard = null;
+
+        function createCard(player) {
+            const card = document.createElement('div');
+            card.className = `card player${player}`;
+            card.dataset.mana = Math.floor(Math.random() * 9) + 1;
+            card.dataset.power = Math.floor(Math.random() * 9) + 1;
+            card.dataset.health = Math.floor(Math.random() * 9) + 1;
+            card.innerHTML = `Mana: ${card.dataset.mana}<br>Power: ${card.dataset.power}<br>Health: ${card.dataset.health}`;
+            return card;
+        }
+
+        function initializeGame() {
+            board.innerHTML = '';
+            playerHand.innerHTML = '';
+            aiHand.innerHTML = '';
+
+            for (let i = 0; i < 16; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.dataset.index = i;
+                cell.addEventListener('click', cellClick);
+                board.appendChild(cell);
+            }
+
+            for (let i = 0; i < 6; i++) {
+                playerHand.appendChild(createCard(1));
+                aiHand.appendChild(createCard(2));
+            }
+
+            playerMana = 1;
+            aiMana = 1;
+            playerCards = 6;
+            aiCards = 6;
+            playerCastle = 15;
+            aiCastle = 15;
+
+            updateGameInfo();
+        }
+
+        function updateGameInfo() {
+            document.getElementById('player-mana').textContent = playerMana;
+            document.getElementById('ai-mana').textContent = aiMana;
+            document.getElementById('player-cards').textContent = playerCards;
+            document.getElementById('ai-cards').textContent = aiCards;
+            document.getElementById('player-castle').textContent = playerCastle;
+            document.getElementById('ai-castle').textContent = aiCastle;
+        }
+
+        function cellClick(e) {
+            if (selectedCard && e.target.classList.contains('cell') && !e.target.hasChildNodes()) {
+                const cellIndex = parseInt(e.target.dataset.index);
+                if (cellIndex >= 12 && cellIndex <= 15) { // Première rangée du bas pour le joueur 1
+                    const cardMana = parseInt(selectedCard.dataset.mana);
+                    if (cardMana <= playerMana) {
+                        e.target.appendChild(selectedCard);
+                        e.target.classList.add('player1');
+                        playerMana -= cardMana;
+                        playerCards--;
+                        selectedCard = null;
+                        updateGameInfo();
+                    }
+                }
+            }
+        }
+
+        playerHand.addEventListener('click', (e) => {
+            if (e.target.classList.contains('card')) {
+                selectedCard = e.target;
+            }
+        });
+
+        endTurnButton.addEventListener('click', () => {
+            aiTurn();
+            playerMana++;
+            playerCards++;
+            playerHand.appendChild(createCard(1));
+            updateGameInfo();
+        });
+
+        function aiTurn() {
+            aiMana++;
+            aiCards++;
+            aiHand.appendChild(createCard(2));
+
+            // Simple AI logic: place a card if possible
+            const availableCells = Array.from(board.children).filter(cell => !cell.hasChildNodes() && parseInt(cell.dataset.index) >= 0 && parseInt(cell.dataset.index) <= 3);
+            const playableCards = Array.from(aiHand.children).filter(card => parseInt(card.dataset.mana) <= aiMana);
+
+            if (availableCells.length > 0 && playableCards.length > 0) {
+                const card = playableCards[0];
+                const cell = availableCells[0];
+                cell.appendChild(card);
+                cell.classList.add('player2');
+                aiMana -= parseInt(card.dataset.mana);
+                aiCards--;
+            }
+
+            updateGameInfo();
+        }
+
+        restartButton.addEventListener('click', initializeGame);
+
+        initializeGame();
+    </script>
+</body>
+</html>
